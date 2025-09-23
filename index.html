@@ -109,6 +109,12 @@
           </ul>
         </div>
         </div>
+<div style="flex:1">
+  <div class="muted small">HP</div>
+  <div class="bar hp"><span id="hpbar" style="width:100%"></span></div>
+  <!-- ⬇⬇ 여기 삽입 -->
+  <div class="small" id="hpText">100 / 100</div>
+</div>
 
         <div>
           <div class="title">장비</div>
@@ -127,7 +133,7 @@
           </div>
         </div>
 
-        <div class="note">정답을 맞히면 몬스터에게 피해! 처치 시 무기/방어구와 <strong>포션(10%)</strong> 드랍.</div>
+        <div class="note">정답을 맞히면 몬스터에게 피해! 처치 시 무기/방어구와 <strong>포션(20%)</strong> 드랍.</div>
       </section>
 
       <section class="card rightCol">
@@ -153,7 +159,6 @@
             <button id="btnCheck" class="btn-good">정답!</button>
             <button id="btnHint" class="btn-ghost">힌트</button>
             <button id="btnSkip" class="btn-bad">건너뛰기</button>
-            <button id="btnSkill" class="btn-ghost" title="희귀 이상 무기 장착 시 사용 가능 (몬스터당 1회)">스킬</button>
           </div>
           <div class="hint" id="hint"></div>
         </div>
@@ -254,26 +259,44 @@
   // ✅ 정답 목표 3개로 변경
   const STAGE_GOAL=3;
   
-  const state={level:1,xp:0,maxHp:100,hp:100,baseAtk:5,lives:1,stage:{world:1,index:1,correct:0},mob:null,problem:null,freeplay:false};
+  const state={level:1,xp:0,maxHp:20,hp:20,baseAtk:5,lives:1,stage:{world:1,index:1,correct:0},mob:null,problem:null,freeplay:false};
 
   function needXpFor(lv){return 50+(lv-1)*25}
   function totalAtk(){return state.baseAtk+(state.level-1)*2}
 
   function newMonster(){const lv=state.level+(state.stage.world-1); const namePool=['소수 슬라임','나눗셈 달팽이','반올림 괴물','나머지 임프','몫 도둑','분모 파괴자','소수점 슬라임','제로슈가 슬라임','프라임 돼지','나눗셈 못함이','소수 용','곱하기 벌레','몫이 없쥐','소수왕자 7세','나눗셈 마왕']; const mhp=lv<4?rnd(12,18):(lv<8?rnd(22,34):rnd(40,60)); const atk=lv<4?rnd(2,4):(lv<8?rnd(4,7):rnd(7,11)); state.mob={name:pick(namePool),level:lv,maxHp:mhp,hp:mhp,atk,boss:false,emoji:'👾'}; setText('#mobName',state.mob.name); setText('#mobLv',lv); setText('#mobHpText',state.mob.hp); setWidth('#mobHpBar',(state.mob.hp/state.mob.maxHp*100).toFixed(1)+'%'); $('#mobEmoji').textContent='👾'; setText('#bossMark',''); renderBars();}
 
-  function renderBars(){ 
-    let stageTxt = state.stage.world+'-'+state.stage.index+' (정답 '+state.stage.correct+'/'+STAGE_GOAL+')';
-    if(state.freeplay) stageTxt = '자유 연습 모드';
-    setText('#stage',stageTxt);
-    setWidth('#hpbar',(state.hp/state.maxHp*100).toFixed(1)+'%');
-    const need=needXpFor(state.level);
-    setWidth('#xpbar',Math.min(100,state.xp/need*100).toFixed(1)+'%');
-    setText('#level',state.level);
-    setText('#atk',totalAtk());
-    const lives=$('#lives'); if(lives){lives.innerHTML=''; for(let i=0;i<state.lives;i++){const s=document.createElement('span'); s.textContent='❤'; lives.appendChild(s);} }
-    renderStageSteps();
-    updateStageBanner();
+function renderBars(){ 
+  let stageTxt = state.stage.world+'-'+state.stage.index+' (정답 '+state.stage.correct+'/'+STAGE_GOAL+')';
+  if(state.freeplay) stageTxt = '자유 연습 모드';
+  setText('#stage',stageTxt);
+
+  // HP 바와 숫자
+  setWidth('#hpbar',(state.hp/state.maxHp*100).toFixed(1)+'%');
+  setText('#hpText', state.hp + ' / ' + state.maxHp);   // ✅ 추가된 부분
+
+  // XP 바
+  const need=needXpFor(state.level);
+  setWidth('#xpbar',Math.min(100,state.xp/need*100).toFixed(1)+'%');
+
+  // 레벨, 공격력
+  setText('#level',state.level);
+  setText('#atk',totalAtk());
+
+  // 남은 목숨
+  const lives=$('#lives');
+  if(lives){
+    lives.innerHTML='';
+    for(let i=0;i<state.lives;i++){
+      const s=document.createElement('span');
+      s.textContent='❤';
+      lives.appendChild(s);
+    }
   }
+
+  renderStageSteps();
+  updateStageBanner();
+}
 
   function gainXp(x){state.xp+=x; log('경험치 +'+x); while(state.xp>=needXpFor(state.level)){state.xp-=needXpFor(state.level); state.level++; state.maxHp+=12; state.hp=Math.min(state.maxHp,state.hp+20); log('<strong>레벨 업!</strong> 현재 레벨 '+state.level);} renderBars();}
 
@@ -724,3 +747,4 @@ function stageName(idx){
   
 </body>
 </html>
+
