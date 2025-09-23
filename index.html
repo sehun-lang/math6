@@ -557,25 +557,29 @@
     renderRanking(await fetchRanking());
   }
 
-  async function fetchRanking(){
-    if(!(LIST_URL)) return getMockRanking();
-    try{
-      const res = await fetch(LIST_URL, {method:'GET'});
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      const data = await res.json();
-      // 다양한 응답 형태 방어
-      let arr = null;
-      if(Array.isArray(data)) arr = data;
-      else if(data && Array.isArray(data.data)) arr = data.data;
-      else if(data && Array.isArray(data.rows)) arr = data.rows;
-      else if(data && data.ok===false) throw new Error(data.message||'ok:false');
-      else throw new Error('Unexpected JSON shape');
-      const by = document.getElementById('rankBy')?.value||'correct';
-      arr.sort((a,b)=> ( (Number(b[by])||0) - (Number(a[by])||0) ) || (new Date(b.timestamp)-new Date(a.timestamp)) );
-      return arr;
-    }catch(e){ log('랭킹 불러오기 실패 - '+e.message+' (로컬 모드 사용)'); return getMockRanking(); }
-  }
+async function fetchRanking(){
+  if(!(LIST_URL)) return getMockRanking();
+  try{
+    const res = await fetch(LIST_URL, {method:'GET'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
 
+    // 다양한 응답 형태 방어
+    let arr = null;
+    if (Array.isArray(data)) arr = data;
+    else if (data && Array.isArray(data.data)) arr = data.data;
+    else if (data && Array.isArray(data.rows)) arr = data.rows;
+    else if (data && data.ok === false) throw new Error(data.message || 'ok:false');
+    else throw new Error('Unexpected JSON shape');
+
+    const by = document.getElementById('rankBy')?.value || 'correct';
+    arr.sort((a,b)=> ((Number(b[by])||0) - (Number(a[by])||0)) || (new Date(b.timestamp) - new Date(a.timestamp)) );
+    return arr;
+  }catch(e){
+    log('랭킹 불러오기 실패 - ' + e.message + ' (로컬 모드 사용)');
+    return getMockRanking();
+  }
+}
   // 누적 정답수 집계 및 훅
   state.totalCorrect = 0;
   const __finalize = finalize; // 기존 참조 보관
@@ -604,3 +608,4 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   </script>
 </body>
 </html>
+
