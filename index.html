@@ -296,83 +296,81 @@
 
   // 문제 생성기
   function makeProblemByStage(){
-    const idx = state.freeplay ? pick([1,2,3,4,5]) : state.stage.index; // 자유 연습: 5유형 랜덤
-    let text='', ans=null, hint='', kind='number'; // kind: number | rounding | pair
+    // 안전 가드: 스테이지 범위를 벗어나면 1로 보정
+    if(!state.stage || !state.stage.index || state.stage.index<1 || state.stage.index>5){ state.stage={world:1,index:1,correct:0}; }
+    const idx = state.freeplay ? pick([1,2,3,4,5]) : state.stage.index;
+    let text='', ans=null, hint='', kind='number';
 
-    if(idx===1){ // 자릿수 같은 소수 (끝 0은 자릿수로 취급하지 않음)
-      const places = pick([1,2]);
-      let a,b,av,bv; let tries=0;
-      while(true){
-        a = trimZerosStr(randDec(places)); b = trimZerosStr(randDec(places));
-        ;[a,b] = ensureTerminating(a,b);
-        a = trimZerosStr(a); b = trimZerosStr(b);
-        if(decPlacesTrimmed(a)>0 && decPlacesTrimmed(a)===decPlacesTrimmed(b)){
-          av=parseFloat(a); bv=parseFloat(b);
-          const q = av/bv;
-          if(atMostKDecimals(q,2)) break; // ✅ 정답이 최대 둘째자리까지만 나오도록 보장
+    const MAX_OUTER=300; let outer=0;
+    while(outer++<MAX_OUTER){
+      if(idx===1){
+        const places = pick([1,2]);
+        let a,b,av,bv; let tries=0;
+        while(tries++<160){
+          a = trimZerosStr(randDec(places)); b = trimZerosStr(randDec(places));
+          ;[a,b] = ensureTerminating(a,b);
+          a = trimZerosStr(a); b = trimZerosStr(b);
+          const da=decPlacesTrimmed(a), db=decPlacesTrimmed(b);
+          if(da>0 && da===db){
+            av=parseFloat(a); bv=parseFloat(b);
+            const q=av/bv; if(isFinite(q) && atMostKDecimals(q,2)){
+              text = fmt(a)+' ÷ '+fmt(b); ans = q; hint='같은 자리수(끝 0 제외) → 소수점 동시에 오른쪽 이동'; kind='number';
+              return {text, ans, hint, kind};
+            }
+          }
         }
-        if(++tries>120){ a='1.2'; b='0.3'; av=1.2; bv=0.3; break; }
       }
-      text = fmt(a)+' ÷ '+fmt(b); ans = av/bv; hint='같은 자리수(끝 0 제외) → 소수점 동시에 오른쪽 이동';
-    }
-    else if(idx===2){ // 자릿수 다른 소수 (끝 0 제외 기준) — 어느 쪽이 더 많아도 허용, 제수 0.1/0.01 금지
-      let a,b,av,bv; let tries=0;
-      while(true){
-        a = trimZerosStr(randDec(pick([1,2])));
-        b = trimZerosStr(randDec(pick([1,2])));
-        if(Math.random()<0.5){ const t=a; a=b; b=t; }
-        ;[a,b] = ensureTerminating(a,b);
-        a = trimZerosStr(a); b = trimZerosStr(b);
-        const da=decPlacesTrimmed(a), db=decPlacesTrimmed(b);
-        const banned = new Set(['0.1','0.01']);
-        if(da!==db && da>0 && db>0 && !banned.has(b)){
-          av=parseFloat(a); bv=parseFloat(b);
-          const q = av/bv;
-          if(atMostKDecimals(q,2)) break; // ✅ 정답 최대 둘째자리
+      else if(idx===2){
+        let a,b,av,bv; let tries=0; const banned=new Set(['0.1','0.01']);
+        while(tries++<240){
+          a = trimZerosStr(randDec(pick([1,2])));
+          b = trimZerosStr(randDec(pick([1,2])));
+          if(Math.random()<0.5){ const t=a; a=b; b=t; }
+          ;[a,b] = ensureTerminating(a,b);
+          a = trimZerosStr(a); b = trimZerosStr(b);
+          const da=decPlacesTrimmed(a), db=decPlacesTrimmed(b);
+          if(da!==db && da>0 && db>0 && !banned.has(b)){
+            av=parseFloat(a); bv=parseFloat(b);
+            const q=av/bv; if(isFinite(q) && atMostKDecimals(q,2)){
+              text = fmt(a)+' ÷ '+fmt(b); ans = q; hint='제수를 정수로 만들기 위해 둘 다 같은 만큼 곱하기(끝 0 제외 기준)'; kind='number';
+              return {text, ans, hint, kind};
+            }
+          }
         }
-        if(++tries>200){ a='2.4'; b='0.3'; av=2.4; bv=0.3; break; }
       }
-      text = fmt(a)+' ÷ '+fmt(b); ans = av/bv; hint='제수를 정수로 만들기 위해 둘 다 같은 만큼 곱하기(끝 0 제외 기준)';
-    }
-        if(++tries>150){ a='2.4'; b='0.3'; av=2.4; bv=0.3; break; }
+      else if(idx===3){
+        let A,b,av,bv; let tries=0;
+        while(tries++<160){
+          A = String(rnd(2,50)); b = trimZerosStr(randDec(pick([1,2])));
+          ;[A,b] = ensureTerminating(String(A), b);
+          b = trimZerosStr(b);
+          av=parseFloat(A); bv=parseFloat(b);
+          const q=av/bv; if(isFinite(q) && atMostKDecimals(q,2)){
+            text = fmt(A)+' ÷ '+fmt(b); ans=q; hint='제수를 정수로 바꾸기 (둘 다 ×10 또는 ×100)'; kind='number';
+            return {text, ans, hint, kind};
+          }
+        }
       }
-      text = fmt(a)+' ÷ '+fmt(b); ans = av/bv; hint='제수를 정수로 만들기 위해 둘 다 같은 만큼 곱하기(끝 0 제외 기준)';
-    }
-    else if(idx===3){ // 자연수 ÷ 소수 (끝 0 제외)
-      let A,b,av,bv; let tries=0;
-      while(true){
-        A = String(rnd(2,50)); b = trimZerosStr(randDec(pick([1,2])));
-        ;[A,b] = ensureTerminating(String(A), b);
-        b = trimZerosStr(b);
-        av=parseFloat(A); bv=parseFloat(b);
-        const q = av/bv;
-        if(atMostKDecimals(q,2)) break; // ✅ 정답이 최대 둘째자리
-        if(++tries>120){ A='12'; b='0.3'; av=12; bv=0.3; break; }
+      else if(idx===4){
+        const a = trimZerosStr(randDec(pick([1,2]))); const b = trimZerosStr(randDec(pick([1,2])));
+        const target = pick(['첫째자리','둘째자리','일의자리']);
+        text = fmt(a)+' ÷ '+fmt(b)+' (몫을 '+target+'까지 반올림)';
+        const raw = parseFloat(a)/parseFloat(b);
+        kind='rounding'; ans={raw, target}; hint='규칙: 5이상 올림, 미만 버림';
+        return {text, ans, hint, kind};
       }
-      text = fmt(A)+' ÷ '+fmt(b); ans = av/bv; hint='제수를 정수로 바꾸기 (둘 다 ×10 또는 ×100)';
+      else { // 5
+        let X = trimZerosStr((rnd(12,200)/10).toFixed(pick([1,2])));
+        let Y = trimZerosStr((rnd(5,150)/10).toFixed(pick([1,2])));
+        const xv=parseFloat(X), yv=parseFloat(Y);
+        const cnt=Math.floor((xv+1e-9)/yv); const remain=xv-cnt*yv; const rFixed=Math.round(remain*100)/100;
+        text = fmt(X)+'를 '+fmt(Y)+'씩 나누어 담습니다. 만들 수 있는 개수와 남는 양은? (형식: 개수, 남는양)';
+        ans={cnt, rem:rFixed}; hint='개수 = 몫의 정수부분, 남는 양 = 전체 - (개수×한 개 분량)'; kind='pair';
+        return {text, ans, hint, kind};
+      }
     }
-    else if(idx===4){ // 반올림
-      const a = trimZerosStr(randDec(pick([1,2]))); const b = trimZerosStr(randDec(pick([1,2])));
-      const target = pick(['첫째자리','둘째자리','일의자리']);
-      text = fmt(a)+' ÷ '+fmt(b)+' (몫을 '+target+'까지 반올림)';
-      const raw = parseFloat(a)/parseFloat(b);
-      kind='rounding'; ans={raw, target};
-      hint='규칙: 5이상 올림, 미만 버림';
-    }
-    else { // idx===5 나눠주고 남는 양
-      let X = trimZerosStr((rnd(12,200)/10).toFixed(pick([1,2])));
-      let Y = trimZerosStr((rnd(5,150)/10).toFixed(pick([1,2])));
-      const xv=parseFloat(X), yv=parseFloat(Y);
-      const cnt = Math.floor((xv+1e-9)/yv); // 안전한 내림
-      const remain = xv - cnt*yv;
-      const rFixed = Math.round(remain*100)/100; // 둘째자리까지 반올림 표기
-      text = fmt(X)+'를 '+fmt(Y)+'씩 나누어 담습니다. 만들 수 있는 개수와 남는 양은? (형식: 개수, 남는양)';
-      ans = {cnt, rem: rFixed};
-      hint='개수 = 몫의 정수부분, 남는 양 = 전체 - (개수×한 개 분량)';
-      kind='pair';
-    }
-
-    return {text, ans, hint, kind};
+    // 폴백 (이 지점에 오면 어떤 경우든 안전 문제 반환)
+    return {text:'1.2 ÷ 0.3', ans:4, hint:'제수를 정수로 만들기', kind:'number'};
   }
 
   // ====== 채점 ======
@@ -450,7 +448,22 @@
   function safeNextProblem(){
     try{
       nextProblem();
-      if(!state.problem || !state.problem.text){ throw new Error('생성 결과 비어 있음'); }
+      // 50ms 후에도 여전히 기본 문구라면 폴백 강제
+      setTimeout(()=>{
+        const qEl=document.getElementById('question');
+        const txt=qEl? qEl.textContent:'';
+        if(!state.problem || !state.problem.text || !txt || /문제 준비 중/.test(txt)){
+          log('문제 생성 지연 → 폴백 문제 사용');
+          state.problem = { text:'1.2 ÷ 0.3', ans:4, hint:'제수를 정수로 만들기', kind:'number' };
+          setText('#question', state.problem.text); setText('#hint',''); const a=$('#answer'); if(a) a.value='';
+        }
+      },50);
+    }catch(e){
+      log('문제 생성 오류: '+ (e?.message||e));
+      state.problem = { text:'1.2 ÷ 0.3', ans:4, hint:'제수를 정수로 만들기', kind:'number' };
+      setText('#question', state.problem.text); setText('#hint',''); const a=$('#answer'); if(a) a.value='';
+    }
+  }
     }catch(e){
       log('문제 생성 오류: '+ (e?.message||e));
       // 안전 폴백 문제 (정답 유한소수, 둘째자리 이내)
