@@ -417,9 +417,12 @@
 
   function damageToMonster(ok){
     if(ok){
-      const base=totalAtk(); const crit=Math.random()<0.1; const dmg=crit?Math.round(base*1.6):base;
+      const base=totalAtk();
+      const crit=Math.random()<0.1;
+      const dmg=crit?Math.round(base*1.6):base;
       state.mob.hp=Math.max(0, state.mob.hp-dmg);
-      setText('#mobHpText', state.mob.hp); setWidth('#mobHpBar', (state.mob.hp/state.mob.maxHp*100).toFixed(1)+'%');
+      setText('#mobHpText', state.mob.hp);
+      setWidth('#mobHpBar', (state.mob.hp/state.mob.maxHp*100).toFixed(1)+'%');
       log('정답! '+dmg+' 피해'+(crit?' (치명타)':'')+'.');
       if(state.mob.hp===0){
         const killedName = state.mob.name;
@@ -437,9 +440,6 @@
       log('오답… 반격 '+dmg+' 피해');
       if(state.hp===0){ openOverlay('gameover'); }
     }
-  }
-  } }
-    else { const dmg=Math.max(1, state.mob.atk); state.hp=clamp(state.hp-dmg,0,state.maxHp); renderBars(); log('오답… 반격 '+dmg+' 피해'); if(state.hp===0){ openOverlay('gameover'); }}
   }
 
   function nextProblem(){
@@ -562,9 +562,6 @@
 
   function saveSettings(){
     const o={ name: document.getElementById('nameInput')?.value||'' };
-    localStorage.setItem(STORE_KEY, JSON.stringify(o));
-    updateShareNote();
-  };
     localStorage.setItem(STORE_KEY, JSON.stringify(o));
     updateShareNote();
   }
@@ -724,41 +721,6 @@ function stageName(idx){
     // 전역 오류 로깅: 문제 생성 중 에러를 화면 로그로 표시
   window.addEventListener('error', (e)=>{ try{ log('오류: '+(e?.message||'알 수 없는 오류')); }catch(_){} });
 </script>
-  <!-- 하드 폴백 이니셜라이저: 기존 스크립트 실패 시 문제를 강제로 표시 -->
-  <script>
-  (function(){
-    function hardInit(){
-      try{
-        var q = document.getElementById('question');
-        if(q){
-          var qt = (q.textContent||'').trim();
-          if(qt==='' || qt.indexOf('문제 준비')>=0){
-            window.state = window.state || {stage:{world:1,index:1,correct:0}};
-            window.state.problem = {text:'1.2 ÷ 0.3', ans:4, hint:'제수를 정수로 만들기', kind:'number'};
-            q.textContent = window.state.problem.text;
-          }
-        }
-        var btn = document.getElementById('btnCheck');
-        var ans = document.getElementById('answer');
-        if(btn && !btn.__bound){
-          btn.addEventListener('click', function(){
-            try{
-              var v = (ans && ans.value ? ans.value.trim() : '');
-              var ok = (v!=='' && Math.abs(parseFloat(v) - 4) < 1e-9);
-              var logEl = document.getElementById('log');
-              var t=new Date().toLocaleTimeString();
-              if(logEl){ logEl.innerHTML='['+t+'] '+(ok?'정답!':'오답! 정답은 4')+'<br>'+logEl.innerHTML; }
-            }catch(e){}
-          });
-          btn.__bound = true;
-        }
-      }catch(e){}
-    }
-    document.addEventListener('DOMContentLoaded', function(){
-      setTimeout(hardInit, 60);
-      setTimeout(hardInit, 300);
-    });
-  })();
-  </script>
+  
 </body>
 </html>
