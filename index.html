@@ -222,8 +222,17 @@
   function rnd(a,b){return Math.floor(Math.random()*(b-a+1))+a}
   function toFixedTrim(x,k){const s=x.toFixed(k);return s.replace(/\.?0+$/,'');}
   function decToFracParts(str){if(!/^-?\d+(?:\.\d+)?$/.test(str)) return null; if(!str.includes('.')) return [parseInt(str,10),1]; const neg=str.startsWith('-'); const s=neg?str.slice(1):str; const [A,B]=s.split('.'); const d=10**B.length; const n=parseInt(A,10)*d+parseInt(B,10); return [neg?-n:n,d];}
-  function randDec(places=2){if(places===1){return (rnd(1,99)/10).toFixed(1);} return (rnd(1,999)/100).toFixed(2);} 
+  function randDec(places=2){ if(places===1){return (rnd(1,99)/10).toFixed(1);} return (rnd(1,999)/100).toFixed(2);} 
   function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
+  // 새로 추가: 표시용으로 끝 0을 제거한 문자열과, 제거 후 자리수 계산
+  function trimZerosStr(s){
+    if(!s.includes('.')) return s;
+    // 소수점 뒤 불필요한 0 제거 (ex: 0.40 -> 0.4, 2.50 -> 2.5, 3.00 -> 3)
+    return s.replace(/0+$/,'').replace(/\.$/, '');
+  }
+  function decPlacesTrimmed(s){
+    const m = String(s).split('.'); if(m.length<2) return 0; return m[1].replace(/0+$/,'').length;
+  }
 
   // ✅ 정답 목표 3개로 변경
   const STAGE_GOAL=3;
@@ -271,27 +280,42 @@
     const idx = state.freeplay ? pick([1,2,3,4,5]) : state.stage.index; // 자유 연습: 5유형 랜덤
     let text='', ans=null, hint='', kind='number'; // kind: number | rounding | pair
 
-    if(idx===1){ // 자릿수 같은 소수
+    if(idx===1){ // 자릿수 같은 소수 (끝 0은 자릿수로 취급하지 않음)
       const places = pick([1,2]);
-      let a = randDec(places), b = randDec(places);
-      ;[a,b] = ensureTerminating(a,b);
-      const av = parseFloat(a), bv=parseFloat(b);
-      text = a+' ÷ '+b; ans = Math.round((av/bv)*100)/100; hint='같은 자리수 → 소수점 동시에 오른쪽 이동';
+      let a,b,av,bv; let tries=0;
+      while(true){
+        a = trimZerosStr(randDec(places)); b = trimZerosStr(randDec(places));
+        ;[a,b] = ensureTerminating(a,b);
+        a = trimZerosStr(a); b = trimZerosStr(b);
+        if(decPlacesTrimmed(a)>0 && decPlacesTrimmed(a)===decPlacesTrimmed(b)) break;
+        if(++tries>50){ a='1.2'; b='0.3'; break; }
+      }
+      av=parseFloat(a); bv=parseFloat(b);
+      text = a+' ÷ '+b; ans = av/bv; hint='같은 자리수(끝 0 제외) → 소수점 동시에 오른쪽 이동';
     }
-    else if(idx===2){ // 자릿수 다른 소수
-      let a = randDec(1), b = randDec(2);
-      if(Math.random()<0.5){ const t=a; a=b; b=t; }
-      ;[a,b] = ensureTerminating(a,b);
-      const av = parseFloat(a), bv=parseFloat(b);
-      text = a+' ÷ '+b; ans = Math.round((av/bv)*100)/100; hint='나누는 수를 정수로 만들기 위해 둘 다 같은 만큼 곱하기';
+    else if(idx===2){ // 자릿수 다른 소수 (끝 0 제외 기준)
+      let a,b,av,bv; let tries=0;
+      while(true){
+        a = trimZerosStr(randDec(pick([1,2])));
+        b = trimZerosStr(randDec(pick([1,2])));
+        if(Math.random()<0.5){ const t=a; a=b; b=t; }
+        ;[a,b] = ensureTerminating(a,b);
+        a = trimZerosStr(a); b = trimZerosStr(b);
+        const da=decPlacesTrimmed(a), db=decPlacesTrimmed(b);
+        if(da!==db && da>0 && db>0) break;
+        if(++tries>60){ a='2.4'; b='0.3'; break; }
+      }
+      av=parseFloat(a); bv=parseFloat(b);
+      text = a+' ÷ '+b; ans = av/bv; hint='제수를 정수로 만들기 위해 둘 다 같은 만큼 곱하기(끝 0 제외 기준)';
     }
-    else if(idx===3){ // 자연수 ÷ 소수
-      let A = rnd(2,50); let b = randDec(pick([1,2]));
+    else if(idx===3){ // 자연수 ÷ 소수 (끝 0 제외)
+      let A = String(rnd(2,50)); let b = trimZerosStr(randDec(pick([1,2])));
       ;[A,b] = ensureTerminating(String(A), b);
-      text = A+' ÷ '+b; ans = Math.round((parseFloat(A)/parseFloat(b))*100)/100; hint='제수를 정수로 바꾸기 (둘 다 ×10 또는 ×100)';
+      b = trimZerosStr(b);
+      text = A+' ÷ '+b; ans = parseFloat(A)/parseFloat(b); hint='제수를 정수로 바꾸기 (둘 다 ×10 또는 ×100)';
     }
     else if(idx===4){ // 반올림
-      const a = randDec(pick([1,2])); const b = randDec(pick([1,2]));
+      const a = trimZerosStr(randDec(pick([1,2]))); const b = trimZerosStr(randDec(pick([1,2])));
       const target = pick(['첫째자리','둘째자리','일의자리']);
       text = a+' ÷ '+b+' (몫을 '+target+'까지 반올림)';
       const raw = parseFloat(a)/parseFloat(b);
@@ -299,8 +323,8 @@
       hint='규칙: 5이상 올림, 미만 버림';
     }
     else { // idx===5 나눠주고 남는 양
-      let X = (rnd(12,200)/10).toFixed(pick([1,2]));
-      let Y = (rnd(5,150)/10).toFixed(pick([1,2]));
+      let X = trimZerosStr((rnd(12,200)/10).toFixed(pick([1,2])));
+      let Y = trimZerosStr((rnd(5,150)/10).toFixed(pick([1,2])));
       const xv=parseFloat(X), yv=parseFloat(Y);
       const cnt = Math.floor((xv+1e-9)/yv); // 안전한 내림
       const remain = xv - cnt*yv;
@@ -320,13 +344,30 @@
     const p = state.problem; const inp = $('#answer'); const v = inp? inp.value: '';
     if(!p){ log('문제가 없습니다.'); return; }
 
+    // 보조: 소수 둘째자리까지의 표준 문자열로 비교
+    const canon = (x,k=2)=> toFixedTrim(parseFloat(x), k);
+
     if(p.kind==='pair'){
       const m = v.split(','); if(m.length!==2){ log('형식: 개수, 남는양  (예: 10, 0.6)'); return; }
       const a = parseInt(m[0].trim(),10); const b = parseNumberInput(m[1]);
       if(Number.isNaN(a) || b==null){ log('형식: 개수, 남는양  (예: 10, 0.6)'); return; }
-      const ok = (a===p.ans.cnt) && (Math.abs(b - p.ans.rem) < 0.001);
-      return finalize(ok, ok? '정답! ('+p.ans.cnt+', '+toFixedTrim(p.ans.rem,2)+')':'오답! 정답은 '+p.ans.cnt+', '+toFixedTrim(p.ans.rem,2));
+      const ok = (a===p.ans.cnt) && (canon(b,2) === canon(p.ans.rem,2));
+      return finalize(ok, ok? '정답! ('+p.ans.cnt+', '+canon(p.ans.rem,2)+')':'오답! 정답은 '+p.ans.cnt+', '+canon(p.ans.rem,2));
     }
+
+    if(p.kind==='rounding'){
+      const target=p.ans.target; const want = (target==='첫째자리'?1: (target==='둘째자리'?2:-1));
+      const inNum = parseNumberInput(v); if(inNum==null){ log('숫자로 입력해 주세요.'); return; }
+      if(want===-1){ const correct = Math.round(p.ans.raw); finalize(Math.abs(inNum - correct) < 0.0000001, '정답은 '+correct+' 입니다.'); }
+      else { const factor = Math.pow(10, want); const correctVal = Math.round(p.ans.raw * factor)/factor; const ok = (canon(inNum, want) === canon(correctVal, want)); finalize(ok, ok? '정답! '+canon(correctVal, want): '오답! 정답은 '+canon(correctVal, want)); }
+      return;
+    }
+
+    // 일반 숫자: 소수 둘째자리까지의 표준 문자열로 비교
+    const num = parseNumberInput(v); if(num==null){ log('숫자로 입력해 주세요.'); return; }
+    const ok = (canon(num,2) === canon(p.ans,2));
+    finalize(ok, ok? '정답! '+canon(p.ans,2): '오답! 정답은 '+canon(p.ans,2));
+  }
 
     if(p.kind==='rounding'){
       const target=p.ans.target; const want = (target==='첫째자리'?1: (target==='둘째자리'?2:-1));
@@ -523,11 +564,18 @@
       const res = await fetch(LIST_URL, {method:'GET'});
       if(!res.ok) throw new Error('HTTP '+res.status);
       const data = await res.json();
-      // 예상 형식: [{name, correct, level, xp, stage, stageText, timestamp}]
+      // 다양한 응답 형태 방어
+      let arr = null;
+      if(Array.isArray(data)) arr = data;
+      else if(data && Array.isArray(data.data)) arr = data.data;
+      else if(data && Array.isArray(data.rows)) arr = data.rows;
+      else if(data && data.ok===false) throw new Error(data.message||'ok:false');
+      else throw new Error('Unexpected JSON shape');
       const by = document.getElementById('rankBy')?.value||'correct';
-      data.sort((a,b)=> ( (b[by]??0) - (a[by]??0) ) || (new Date(b.timestamp)-new Date(a.timestamp)) );
-      return data;
+      arr.sort((a,b)=> ( (Number(b[by])||0) - (Number(a[by])||0) ) || (new Date(b.timestamp)-new Date(a.timestamp)) );
+      return arr;
     }catch(e){ log('랭킹 불러오기 실패 - '+e.message+' (로컬 모드 사용)'); return getMockRanking(); }
+  }catch(e){ log('랭킹 불러오기 실패 - '+e.message+' (로컬 모드 사용)'); return getMockRanking(); }
   }
 
   // 누적 정답수 집계 및 훅
