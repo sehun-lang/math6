@@ -549,7 +549,7 @@
       renderRanking(getMockRanking()); return;
     }
     try{
-      const res = await fetch(SUBMIT_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+      const res = await fetch(SUBMIT_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload)});
       if(!res.ok){ throw new Error('HTTP '+res.status); }
       const data = await res.json().catch(()=>({ok:true}));
       log('점수 전송 완료'); if(data?.ok===false) log('서버 응답: '+(data?.message||'실패'));
