@@ -155,6 +155,7 @@
             <button id="btnSkip" class="btn-bad">건너뛰기</button>
             <button id="btnSkill" class="btn-ghost" title="희귀 이상 무기 장착 시 사용 가능 (몬스터당 1회)">스킬</button>
           </div>
+          <div id="skillList" class="note" style="margin:6px 0 0"></div>
           <div class="hint" id="hint"></div>
         </div>
 
@@ -845,52 +846,4 @@ function stageName(idx){
     state.inv.forEach((it,idx)=>{
       const div=document.createElement('div');
       div.className='weapon';
-      const rankClass=RANK_TAG[it.rank]||'';
-      div.innerHTML=`<span>${it.emoji||'🎁'} ${it.name}</span> <span class="tag ${rankClass}">${it.rarity||''}</span> <span class="muted small">${it.note||''}</span>`;
-      box.appendChild(div);
-    });
-  }
-
-  function upgradeName(base, rank){ return (RANK_PREFIX[rank]||'') + base; }
-
-  function dropEquipment(){
-    // 무기/방어구 중 하나
-    const isWeapon = Math.random()<0.5;
-    const baseName = isWeapon? '단검' : '가죽 갑옷';
-    const emoji = isWeapon? '🗡️' : '🛡️';
-    let target = isWeapon? 'A' : 'B';
-
-    // 이미 장착되어 있으면 이름 고급화(랭크 +1)
-    let cur = state['equip'+target];
-    if(cur){
-      cur.rank = Math.min((cur.rank||0)+1, RANK_PREFIX.length-1);
-      cur.name = upgradeName(cur.baseName||baseName, cur.rank);
-      cur.rarity = ['일반','고급','정교','희귀','전설','신화','유니크'][cur.rank]||'일반';
-      cur.power = (cur.basePower||2) + cur.rank; // 랭크 따라 소폭 상승
-      log(`<strong>${cur.name}</strong>로 장비가 업그레이드 되었습니다!`);
-    } else {
-      // 장착 비어 있으면 새로 지급
-      const item={type:isWeapon?'weapon':'armor', baseName, name:baseName, basePower:isWeapon?2:1, power:isWeapon?2:1, rank:0, rarity:'일반', emoji};
-      state['equip'+target]=item;
-      addToInventory({name:`${emoji} ${item.name}`, rarity:item.rarity, rank:item.rank, note:'장착됨', emoji});
-      log(`${emoji} <strong>${item.name}</strong>을(를) 획득했습니다.`);
-    }
-    updateEquipUI();
-  }
-
-  function dropPotion(){
-    addToInventory({name:'🧪 포션', rarity:'소모품', rank:0, note:'+20 HP', emoji:'🧪'});
-    state.hp = clamp(state.hp+20, 0, state.maxHp); // 즉시 회복형 간단 처리
-    renderBars();
-    log('🧪 포션을 획득하고 HP 20 회복!');
-  }
-
-  function rollDrops(){
-    // 드랍 확률: 장비 20%, 포션 20% (각각 독립)
-    if(Math.random()<0.20) dropEquipment();
-    if(Math.random()<0.20) dropPotion();
-  }
-</script>
-  
-</body>
-</html>
+      const rankClass
