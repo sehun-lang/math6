@@ -56,6 +56,10 @@
   .steps{display:flex;gap:6px;margin:8px 0 0;padding:0;list-style:none}
     .steps li{flex:1;text-align:center;font-size:12px;color:var(--sub);padding:6px 0;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:#0e1230}
     .steps li.active{background:linear-gradient(180deg,#2b2f58,#1d2144);color:#fff;border-color:rgba(255,255,255,.3);font-weight:800}
+  .stageBanner{margin:10px 0;padding:14px 18px;border-radius:12px;font-size:18px;font-weight:900;letter-spacing:.3px;text-align:center;
+      background:linear-gradient(90deg,#6ae3ff,#7bffea,#ffd166);color:#0b0e1c;
+      border:1px solid rgba(255,255,255,.25);box-shadow:0 6px 18px rgba(0,0,0,.25)}
+    .stageBanner .minor{font-weight:700;opacity:.9}
   </style>
 </head>
 <body>
@@ -67,6 +71,9 @@
       <button class="btn-ghost" id="btnTests">개발자 테스트</button>
       <button class="btn-ghost" id="btnReset">초기화</button>
     </header>
+
+    <!-- ✅ 상단 스테이지 배너 -->
+    <div id="stageBanner" class="stageBanner">[스테이지 1-1 자릿수가 같은 소수의 나눗셈]</div>
 
     <!-- 🔗 공유/랭킹 패널 -->
     <section class="card" style="margin:10px 0; display:grid; grid-template-columns:1fr auto auto; gap:8px; align-items:end">
@@ -86,8 +93,8 @@
         <div>
           <div class="title">플레이어</div>
           <div class="grid2">
-            <div><div class="muted small">레벨</div><div class="big" id="level">1</div></div>
-            <div><div class="muted small">경험치</div><div class="bar"><span id="xpbar" style="width:0%"></span></div></div>
+            <div><div class="muted small">레벨</div><div class="big" id="level">1
+        <div><div class="muted small">경험치</div><div class="bar"><span id="xpbar" style="width:0%"></span></div></div>
           </div>
           <div class="row" style="margin-top:8px">
             <div style="flex:1"><div class="muted small">HP</div><div class="bar hp"><span id="hpbar" style="width:100%"></span></div></div>
@@ -265,7 +272,7 @@
     setText('#atk',totalAtk());
     const lives=$('#lives'); if(lives){lives.innerHTML=''; for(let i=0;i<state.lives;i++){const s=document.createElement('span'); s.textContent='❤'; lives.appendChild(s);} }
     renderStageSteps();
-  }} 
+    updateStageBanner();
   }
 
   function gainXp(x){state.xp+=x; log('경험치 +'+x); while(state.xp>=needXpFor(state.level)){state.xp-=needXpFor(state.level); state.level++; state.maxHp+=12; state.hp=Math.min(state.maxHp,state.hp+20); log('<strong>레벨 업!</strong> 현재 레벨 '+state.level);} renderBars();}
@@ -308,7 +315,7 @@
       }
       text = fmt(a)+' ÷ '+fmt(b); ans = av/bv; hint='같은 자리수(끝 0 제외) → 소수점 동시에 오른쪽 이동';
     }
-    else if(idx===2){ // 자릿수 다른 소수 (끝 0 제외 기준)
+    else if(idx===2){ // 자릿수 다른 소수 (끝 0 제외 기준) — 어느 쪽이 더 많아도 허용, 제수 0.1/0.01 금지
       let a,b,av,bv; let tries=0;
       while(true){
         a = trimZerosStr(randDec(pick([1,2])));
@@ -317,11 +324,16 @@
         ;[a,b] = ensureTerminating(a,b);
         a = trimZerosStr(a); b = trimZerosStr(b);
         const da=decPlacesTrimmed(a), db=decPlacesTrimmed(b);
-        if(da!==db && da>0 && db>0){
+        const banned = new Set(['0.1','0.01']);
+        if(da!==db && da>0 && db>0 && !banned.has(b)){
           av=parseFloat(a); bv=parseFloat(b);
           const q = av/bv;
-          if(atMostKDecimals(q,2)) break; // ✅ 정답이 최대 둘째자리
+          if(atMostKDecimals(q,2)) break; // ✅ 정답 최대 둘째자리
         }
+        if(++tries>200){ a='2.4'; b='0.3'; av=2.4; bv=0.3; break; }
+      }
+      text = fmt(a)+' ÷ '+fmt(b); ans = av/bv; hint='제수를 정수로 만들기 위해 둘 다 같은 만큼 곱하기(끝 0 제외 기준)';
+    }
         if(++tries>150){ a='2.4'; b='0.3'; av=2.4; bv=0.3; break; }
       }
       text = fmt(a)+' ÷ '+fmt(b); ans = av/bv; hint='제수를 정수로 만들기 위해 둘 다 같은 만큼 곱하기(끝 0 제외 기준)';
@@ -416,17 +428,18 @@
         gainXp(25+state.mob.level*8);
         const msg = `<strong>${killedName}</strong> 격파! 보상으로 경험치를 획득했습니다.`;
         const vt = document.getElementById('victoryText'); if(vt) vt.innerHTML = msg;
+        state.victoryHold = true; // 팝업 닫을 때까지 진행 멈춤
         openOverlay('victory');
-        newMonster();
+        return; // 새 몬스터/문제는 닫기 버튼에서 처리
       }
-    }
-    else {
+    } else {
       const dmg=Math.max(1, state.mob.atk);
       state.hp=clamp(state.hp-dmg,0,state.maxHp);
       renderBars();
       log('오답… 반격 '+dmg+' 피해');
       if(state.hp===0){ openOverlay('gameover'); }
     }
+  }
   } }
     else { const dmg=Math.max(1, state.mob.atk); state.hp=clamp(state.hp-dmg,0,state.maxHp); renderBars(); log('오답… 반격 '+dmg+' 피해'); if(state.hp===0){ openOverlay('gameover'); }}
   }
@@ -435,9 +448,19 @@
 
   function finalize(correct, msg){
     log(msg);
-    if(correct){ state.stage.correct++; damageToMonster(true); if(!state.freeplay && state.stage.correct>=STAGE_GOAL){
+    if(correct){
+      state.stage.correct++;
+      damageToMonster(true);
+      if(state.victoryHold){ renderBars(); return; } // 격파 팝업 떠 있으면 잠시 멈춤
+      if(!state.freeplay && state.stage.correct>=STAGE_GOAL){
         state.stage.correct=0; state.stage.index++;
         if(state.stage.index>5){ state.stage.index=1; state.stage.world++; log('<strong>월드 업!</strong>'); state.freeplay=true; log('<strong>축하합니다! 모든 스테이지를 클리어했습니다.</strong> 이제 자유 연습 모드에서 계속 문제를 풀 수 있습니다.'); }
+        else { log('<strong>스테이지 클리어!</strong> 다음 스테이지로 이동'); }
+      }
+      renderBars();
+      nextProblem();
+    } else { damageToMonster(false); nextProblem(); }
+  }
         else { log('<strong>스테이지 클리어!</strong> 다음 스테이지로 이동'); }
       }
       renderBars();
@@ -457,7 +480,7 @@
     const closeTests=$('#closeTests'); if(closeTests) closeTests.addEventListener('click', ()=>closeOverlay('ovTests'));
     const btnRunTests=$('#btnRunTests'); if(btnRunTests) btnRunTests.addEventListener('click', runTests);
     const btnHint=$('#btnHint'); if(btnHint) btnHint.addEventListener('click', ()=>{ if(state.problem) setText('#hint', state.problem.hint);});
-    const btnVictoryClose = document.getElementById('btnVictoryClose'); if(btnVictoryClose) btnVictoryClose.addEventListener('click', ()=> closeOverlay('victory'));
+    const btnVictoryClose = document.getElementById('btnVictoryClose'); if(btnVictoryClose) btnVictoryClose.addEventListener('click', ()=>{ closeOverlay('victory'); state.victoryHold=false; newMonster(); renderBars(); nextProblem(); });
   }
 
   // 간단 테스트 러너 (기존 설명 + 추가 테스트 케이스)
@@ -504,14 +527,16 @@
   const MOCK_KEY = 'rpg_divdec_mockrank_v1';
 
   function saveSettings(){
-    const o={ name: document.getElementById('nameInput')?.value||'', rankBy: document.getElementById('rankBy')?.value||'correct' };
+    const o={ name: document.getElementById('nameInput')?.value||'' };
+    localStorage.setItem(STORE_KEY, JSON.stringify(o));
+    updateShareNote();
+  };
     localStorage.setItem(STORE_KEY, JSON.stringify(o));
     updateShareNote();
   }
   function loadSettings(){
     try{ const raw=localStorage.getItem(STORE_KEY); if(!raw) return; const o=JSON.parse(raw);
       if(o.name) document.getElementById('nameInput').value=o.name;
-      if(o.rankBy) document.getElementById('rankBy').value=o.rankBy;
     }catch(e){}
     updateShareNote();
   }
@@ -635,17 +660,30 @@
     // 기준 변경 시 즉시 랭킹 재조회
     };
 
-window.addEventListener('DOMContentLoaded', async ()=>{
-    renderBars(); newMonster(); nextProblem(); bindUI();
-    loadSettings();
-    renderRanking(await fetchRanking());
-  });
-
+function stageName(idx){
+    switch(idx){
+      case 1: return '자릿수가 같은 소수의 나눗셈';
+      case 2: return '자릿수가 다른 소수의 나눗셈';
+      case 3: return '자연수 나누기 소수';
+      case 4: return '몫을 반올림하여 나타내기';
+      case 5: return '나눠주고 남는 양 구하기';
+      default: return '';
+    }
+  }
+  function updateStageBanner(){
+    const el=document.getElementById('stageBanner'); if(!el) return;
+    if(state.freeplay){ el.textContent='[자유 연습 모드]'; return; }
+    const w=state.stage.world, i=state.stage.index; const label=stageName(i);
+    el.textContent = `[스테이지 ${w}-${i} ${label}]`;
+  }
   function renderStageSteps(){
     const ul=document.getElementById('stageSteps'); if(!ul) return;
     const items=[...ul.children];
     items.forEach((li,i)=>{ if(i < state.stage.index) li.classList.add('active'); else li.classList.remove('active'); });
-  } newMonster(); nextProblem(); bindUI();
+  }
+
+  window.addEventListener('DOMContentLoaded', async ()=>{
+    renderBars(); newMonster(); nextProblem(); bindUI();
     loadSettings();
     renderRanking(await fetchRanking());
   });
