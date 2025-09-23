@@ -66,7 +66,7 @@
   <div class="wrap">
     <header>
       <h1>소수의 나눗셈: 쓰러뜨리고 레벨업!</h1>
-      <span class="pill" id="modePill">$1 · v2025-09-24a</span>
+      <span class="pill" id="modePill">오프라인 · 단일 HTML · 자동 저장</span>
       <button class="btn-ghost" id="btnRange">문제 범위</button>
       <button class="btn-ghost" id="btnTests">개발자 테스트</button>
       <button class="btn-ghost" id="btnReset">초기화</button>
@@ -155,7 +155,6 @@
             <button id="btnSkip" class="btn-bad">건너뛰기</button>
             <button id="btnSkill" class="btn-ghost" title="희귀 이상 무기 장착 시 사용 가능 (몬스터당 1회)">스킬</button>
           </div>
-          <div id="skillList" class="note" style="margin:6px 0 0"></div>
           <div class="hint" id="hint"></div>
         </div>
 
@@ -174,8 +173,8 @@
         </div>
       </section>
 
-      <!-- 📊 랭킹 표 (페이지 하단 표시는 겹침 방지를 위해 숨김) -->
-      <section class="card" style="grid-column:1 / -1; display:none">
+      <!-- 📊 랭킹 표 -->
+      <section class="card" style="grid-column:1 / -1">
         <div class="title">랭킹</div>
         <div id="ranking" class="log" style="height:auto; max-height:260px"></div>
       </section>
@@ -207,17 +206,6 @@
     </div>
   </div>
 
-  <!-- 🏆 랭킹 오버레이 -->
-  <div class="overlay" id="ovRank">
-    <div class="panel">
-      <h3>🏆 실시간 랭킹</h3>
-      <div id="rankingModal" class="log" style="height:auto; max-height:60vh"></div>
-      <div style="text-align:right;margin-top:10px"><button id="closeRank">닫기</button></div>
-    </div>
-  </div>
-  </div>
-  </div>
-
   <div class="overlay" id="gameover">
     <div class="panel">
       <h3>게임 오버</h3>
@@ -237,36 +225,6 @@
   </div>
 
   <script>
-  // ===== Watchdog & Build Stamp =====
-  console.log('[RPG] build v2025-09-24a loaded');
-  // 초간단 안전 문제 목록(정답 둘째자리 이내)
-  const __SAFE_SET = [
-    {text:'1.2 ÷ 0.3', ans:4, hint:'제수를 정수로 만들기', kind:'number'},
-    {text:'2.4 ÷ 0.3', ans:8, hint:'둘 다 ×10', kind:'number'},
-    {text:'3.6 ÷ 0.9', ans:4, hint:'둘 다 ×10', kind:'number'},
-    {text:'4.2 ÷ 0.7', ans:6, hint:'둘 다 ×10', kind:'number'},
-    {text:'1.5 ÷ 0.5', ans:3, hint:'둘 다 ×10', kind:'number'},
-    {text:'2.1 ÷ 0.3', ans:7, hint:'둘 다 ×10', kind:'number'},
-    {text:'0.8 ÷ 0.2', ans:4, hint:'둘 다 ×10', kind:'number'}
-  ];
-  function __forceFallbackQuestion(){
-    try{
-      const pick = __SAFE_SET[Math.floor(Math.random()*__SAFE_SET.length)];
-      state.problem = JSON.parse(JSON.stringify(pick));
-      setText('#question', state.problem.text);
-      setText('#hint','');
-      const a=$('#answer'); if(a) a.value='';
-      log('폴백 문제 적용('+state.problem.text+')');
-    }catch(_){}
-  }
-  // 1초마다 문제 표시 감시: 준비중/빈 경우 강제 세팅
-  const __wd = setInterval(()=>{
-    try{
-      const qEl=document.getElementById('question');
-      const txt=(qEl?.textContent||'').trim();
-      if(!txt || txt.includes('문제 준비')){ __forceFallbackQuestion(); }
-    }catch(_){ /* ignore */ }
-  }, 1000);
   'use strict';
   const $ = (s)=>document.querySelector(s);
   const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
@@ -469,32 +427,6 @@
       if(state.mob.hp===0){
         const killedName = state.mob.name;
         gainXp(25+state.mob.level*8);
-        rollDrops(); // ✅ 격파 시 드랍 처리
-        const msg = `<strong>${killedName}</strong> 격파! 보상으로 경험치를 획득했습니다.`;
-        const vt = document.getElementById('victoryText'); if(vt) vt.innerHTML = msg;
-        state.victoryHold = true; // 팝업 닫을 때까지 진행 멈춤
-        openOverlay('victory');
-        return; // 새 몬스터/문제는 닫기 버튼에서 처리
-      }
-    } else {
-      const dmg=Math.max(1, state.mob.atk);
-      state.hp=clamp(state.hp-dmg,0,state.maxHp);
-      renderBars();
-      log('오답… 반격 '+dmg+' 피해');
-      if(state.hp===0){ openOverlay('gameover'); }
-    }
-  }{
-    if(ok){
-      const base=totalAtk();
-      const crit=Math.random()<0.1;
-      const dmg=crit?Math.round(base*1.6):base;
-      state.mob.hp=Math.max(0, state.mob.hp-dmg);
-      setText('#mobHpText', state.mob.hp);
-      setWidth('#mobHpBar', (state.mob.hp/state.mob.maxHp*100).toFixed(1)+'%');
-      log('정답! '+dmg+' 피해'+(crit?' (치명타)':'')+'.');
-      if(state.mob.hp===0){
-        const killedName = state.mob.name;
-        gainXp(25+state.mob.level*8);
         const msg = `<strong>${killedName}</strong> 격파! 보상으로 경험치를 획득했습니다.`;
         const vt = document.getElementById('victoryText'); if(vt) vt.innerHTML = msg;
         state.victoryHold = true; // 팝업 닫을 때까지 진행 멈춤
@@ -580,9 +512,6 @@
     const btnRestart=$('#btnRestart'); if(btnRestart) btnRestart.addEventListener('click', ()=>{ location.reload(); });
     const btnTests=$('#btnTests'); if(btnTests) btnTests.addEventListener('click', ()=>{ openOverlay('ovTests'); runTests(); });
     const closeTests=$('#closeTests'); if(closeTests) closeTests.addEventListener('click', ()=>closeOverlay('ovTests'));
-    // 랭킹 오버레이 바인딩
-    const btnFetchRank=$('#btnFetchRank'); if(btnFetchRank) btnFetchRank.addEventListener('click', async ()=>{ openOverlay('ovRank'); renderRanking(await fetchRanking(), 'rankingModal'); });
-    const closeRank=$('#closeRank'); if(closeRank) closeRank.addEventListener('click', ()=> closeOverlay('ovRank'));
     const btnRunTests=$('#btnRunTests'); if(btnRunTests) btnRunTests.addEventListener('click', runTests);
     const btnHint=$('#btnHint'); if(btnHint) btnHint.addEventListener('click', ()=>{ if(state.problem) setText('#hint', state.problem.hint);});
     const btnVictoryClose = document.getElementById('btnVictoryClose'); if(btnVictoryClose) btnVictoryClose.addEventListener('click', ()=>{ closeOverlay('victory'); state.victoryHold=false; newMonster(); renderBars(); nextProblem(); });
@@ -662,35 +591,9 @@
   function fmtStage(n){ const w=Math.floor(n/10), i=n%10; return w+'-'+i; }
 
   // 표 그리기: 4가지 점수 모두 노출
-  function renderRanking(list, targetId='ranking'){
-    const box=document.getElementById(targetId); if(!box) return;
+  function renderRanking(list){
+    const box=document.getElementById('ranking'); if(!box) return;
     if(!list || !list.length){ box.innerHTML='<span class="muted">랭킹 데이터가 없습니다.</span>'; return; }
-    let html='<table style="width:100%; border-collapse:collapse">'+
-      '<thead><tr style="text-align:left">'
-      +'<th style="padding:6px 4px">#</th>'
-      +'<th style="padding:6px 4px">이름</th>'
-      +'<th style="padding:6px 4px">정답수</th>'
-      +'<th style="padding:6px 4px">레벨</th>'
-      +'<th style="padding:6px 4px">경험치</th>'
-      +'<th style="padding:6px 4px">스테이지</th>'
-      +'<th style="padding:6px 4px">등록시각</th>'
-      +'</tr></thead><tbody>';
-    list.forEach((r,idx)=>{
-      const when = r.timestamp? new Date(r.timestamp).toLocaleString():'';
-      const stageTxt = (typeof r.stage==='number')? fmtStage(r.stage): (r.stageText||'');
-      html += `<tr>`
-        + `<td style="padding:6px 4px">${idx+1}</td>`
-        + `<td style="padding:6px 4px">${r.name||''}</td>`
-        + `<td style="padding:6px 4px">${r.correct ?? r.score ?? ''}</td>`
-        + `<td style="padding:6px 4px">${r.level ?? ''}</td>`
-        + `<td style="padding:6px 4px">${r.xp ?? ''}</td>`
-        + `<td style="padding:6px 4px">${stageTxt}</td>`
-        + `<td style="padding:6px 4px">${when}</td>`
-        + `</tr>`;
-    });
-    html+='</tbody></table>';
-    box.innerHTML=html;
-  }
     let html='<table style="width:100%; border-collapse:collapse">'+
       '<thead><tr style="text-align:left">'
       +'<th style="padding:6px 4px">#</th>'
@@ -811,39 +714,13 @@ function stageName(idx){
   }
 
   window.addEventListener('DOMContentLoaded', async ()=>{
-    // 인벤토리 초기화
-    state.inv = [];
-    state.equipA = null; state.equipB = null;
     renderBars(); newMonster(); safeNextProblem(); bindUI();
-    loadSettings();
-    renderRanking(await fetchRanking());
-  }); newMonster(); safeNextProblem(); bindUI();
     loadSettings();
     renderRanking(await fetchRanking());
   });
     // 전역 오류 로깅: 문제 생성 중 에러를 화면 로그로 표시
   window.addEventListener('error', (e)=>{ try{ log('오류: '+(e?.message||'알 수 없는 오류')); }catch(_){} });
-// ====== 인벤토리 & 드랍 ======
-  const RANK_PREFIX=['','고급 ','정교한 ','희귀한 ','전설의 ','신화의 ','유니크 '];
-  const RANK_TAG=['','r-rare','r-rare','r-legend','r-legend','r-myth','r-unique'];
-
-  function updateEquipUI(){
-    const slotA=document.getElementById('equipA');
-    const slotB=document.getElementById('equipB');
-    const render=(el,item,def)=>{
-      if(!el) return; if(!item){ el.innerHTML=`<span>${def}</span><span class="tag">빈 슬롯</span><span class="muted small">+0</span>`; return; }
-      const rankClass=RANK_TAG[item.rank]||''; const tag=`<span class="tag ${rankClass}">${item.rarity||'장비'}</span>`;
-      el.innerHTML=`<span>${item.emoji||'🗡️'} ${item.name}</span>${tag}<span class="muted small">+${item.power||0}</span>`;
-    };
-    render(slotA, state.equipA, '🗡️ 무기 A 없음');
-    render(slotB, state.equipB, '🛡️ 보조 슬롯 B (무기/방어구)');
-  }
-
-  function addToInventory(item){ state.inv.push(item); renderInventory(); }
-
-  function renderInventory(){
-    const box=document.getElementById('inventory'); if(!box) return; box.innerHTML='';
-    state.inv.forEach((it,idx)=>{
-      const div=document.createElement('div');
-      div.className='weapon';
-      const rankClass
+</script>
+  
+</body>
+</html>
