@@ -442,31 +442,17 @@
     else { const dmg=Math.max(1, state.mob.atk); state.hp=clamp(state.hp-dmg,0,state.maxHp); renderBars(); log('오답… 반격 '+dmg+' 피해'); if(state.hp===0){ openOverlay('gameover'); }}
   }
 
-  function nextProblem(){ state.problem = makeProblemByStage(); setText('#question', state.problem.text); setText('#hint',''); const a=$('#answer'); if(a) a.value=''; }
-
-  // ✅ 안전 래퍼: 문제 생성 오류나 무한 재시도 방지
-  function safeNextProblem(){
+  function nextProblem(){
     try{
-      nextProblem();
-      // 50ms 후에도 여전히 기본 문구라면 폴백 강제
-      setTimeout(()=>{
-        const qEl=document.getElementById('question');
-        const txt=qEl? qEl.textContent:'';
-        if(!state.problem || !state.problem.text || !txt || /문제 준비 중/.test(txt)){
-          log('문제 생성 지연 → 폴백 문제 사용');
-          state.problem = { text:'1.2 ÷ 0.3', ans:4, hint:'제수를 정수로 만들기', kind:'number' };
-          setText('#question', state.problem.text); setText('#hint',''); const a=$('#answer'); if(a) a.value='';
-        }
-      },50);
+      const p = makeProblemByStage();
+      if(!p || !p.text) throw new Error('빈 문제');
+      state.problem = p;
+      setText('#question', p.text);
+      setText('#hint','');
+      const a=$('#answer'); if(a) a.value='';
     }catch(e){
-      log('문제 생성 오류: '+ (e?.message||e));
-      state.problem = { text:'1.2 ÷ 0.3', ans:4, hint:'제수를 정수로 만들기', kind:'number' };
-      setText('#question', state.problem.text); setText('#hint',''); const a=$('#answer'); if(a) a.value='';
-    }
-  }
-    }catch(e){
-      log('문제 생성 오류: '+ (e?.message||e));
-      // 안전 폴백 문제 (정답 유한소수, 둘째자리 이내)
+      log('nextProblem 오류: '+(e?.message||e));
+      // 즉시 폴백 문제
       state.problem = { text:'1.2 ÷ 0.3', ans:4, hint:'제수를 정수로 만들기', kind:'number' };
       setText('#question', state.problem.text);
       setText('#hint','');
@@ -474,26 +460,46 @@
     }
   }
 
+  function safeNextProblem(){
+    try{ nextProblem(); }catch(e){ log('문제 생성 오류: '+(e?.message||e)); }
+    // 2중 감시: 준비중 문구가 남아있으면 폴백 강제
+    const ensure=()=>{
+      const qEl=document.getElementById('question'); const txt=(qEl?.textContent||'').trim();
+      if(!state.problem || !state.problem.text || txt==='' || txt.includes('문제 준비중') || txt.includes('문제 준비 중')){
+        state.problem = { text:'1.2 ÷ 0.3', ans:4, hint:'제수를 정수로 만들기', kind:'number' };
+        setText('#question', state.problem.text);
+        setText('#hint','');
+        const a=$('#answer'); if(a) a.value='';
+        log('폴백 문제 적용');
+      }
+    };
+    setTimeout(ensure, 80);
+    setTimeout(ensure, 200);
+  }
+
   function finalize(correct, msg){
     log(msg);
     if(correct){
       state.stage.correct++;
       damageToMonster(true);
-      if(state.victoryHold){ renderBars(); return; } // 격파 팝업 떠 있으면 잠시 멈춤
+      if(state.victoryHold){ renderBars(); return; }
       if(!state.freeplay && state.stage.correct>=STAGE_GOAL){
         state.stage.correct=0; state.stage.index++;
-        if(state.stage.index>5){ state.stage.index=1; state.stage.world++; log('<strong>월드 업!</strong>'); state.freeplay=true; log('<strong>축하합니다! 모든 스테이지를 클리어했습니다.</strong> 이제 자유 연습 모드에서 계속 문제를 풀 수 있습니다.'); }
-        else { log('<strong>스테이지 클리어!</strong> 다음 스테이지로 이동'); }
+        if(state.stage.index>5){
+          state.stage.index=1; state.stage.world++;
+          log('<strong>월드 업!</strong>');
+          state.freeplay=true;
+          log('<strong>축하합니다! 모든 스테이지를 클리어했습니다.</strong> 이제 자유 연습 모드에서 계속 문제를 풀 수 있습니다.');
+        } else {
+          log('<strong>스테이지 클리어!</strong> 다음 스테이지로 이동');
+        }
       }
       renderBars();
-      nextProblem();
-    } else { damageToMonster(false); nextProblem(); }
-  }
-        else { log('<strong>스테이지 클리어!</strong> 다음 스테이지로 이동'); }
-      }
-      renderBars();
-      nextProblem();
-    } else { damageToMonster(false); nextProblem(); }
+      safeNextProblem();
+    } else {
+      damageToMonster(false);
+      safeNextProblem();
+    }
   }
 
   function bindUI(){
