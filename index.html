@@ -446,6 +446,21 @@
 
   function nextProblem(){ state.problem = makeProblemByStage(); setText('#question', state.problem.text); setText('#hint',''); const a=$('#answer'); if(a) a.value=''; }
 
+  // ✅ 안전 래퍼: 문제 생성 오류나 무한 재시도 방지
+  function safeNextProblem(){
+    try{
+      nextProblem();
+      if(!state.problem || !state.problem.text){ throw new Error('생성 결과 비어 있음'); }
+    }catch(e){
+      log('문제 생성 오류: '+ (e?.message||e));
+      // 안전 폴백 문제 (정답 유한소수, 둘째자리 이내)
+      state.problem = { text:'1.2 ÷ 0.3', ans:4, hint:'제수를 정수로 만들기', kind:'number' };
+      setText('#question', state.problem.text);
+      setText('#hint','');
+      const a=$('#answer'); if(a) a.value='';
+    }
+  }
+
   function finalize(correct, msg){
     log(msg);
     if(correct){
@@ -471,7 +486,7 @@
   function bindUI(){
     const btnCheck=$('#btnCheck'); if(btnCheck) btnCheck.addEventListener('click', checkAnswer);
     const ans=$('#answer'); if(ans) ans.addEventListener('keydown', (e)=>{ if(e.key==='Enter') checkAnswer();});
-    const btnSkip=$('#btnSkip'); if(btnSkip) btnSkip.addEventListener('click', ()=>{ log('문제 건너뛰기'); nextProblem();});
+    const btnSkip=$('#btnSkip'); if(btnSkip) btnSkip.addEventListener('click', ()=>{ log('문제 건너뛰기'); safeNextProblem();});
     const btnRange=$('#btnRange'); if(btnRange) btnRange.addEventListener('click', ()=>openOverlay('ovRange'));
     const closeRange=$('#closeRange'); if(closeRange) closeRange.addEventListener('click', ()=>closeOverlay('ovRange'));
     const btnReset=$('#btnReset'); if(btnReset) btnReset.addEventListener('click', ()=>{ location.reload(); });
@@ -683,10 +698,12 @@ function stageName(idx){
   }
 
   window.addEventListener('DOMContentLoaded', async ()=>{
-    renderBars(); newMonster(); nextProblem(); bindUI();
+    renderBars(); newMonster(); safeNextProblem(); bindUI();
     loadSettings();
     renderRanking(await fetchRanking());
   });
-  </script>
+    // 전역 오류 로깅: 문제 생성 중 에러를 화면 로그로 표시
+  window.addEventListener('error', (e)=>{ try{ log('오류: '+(e?.message||'알 수 없는 오류')); }catch(_){} });
+</script>
 </body>
 </html>
