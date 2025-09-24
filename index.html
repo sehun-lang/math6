@@ -128,8 +128,6 @@
           <div class="title">인벤토리</div>
           <div class="inv" id="inventory"></div>
           <div class="row" style="justify-content:space-between; margin-top:6px">
-            <div class="note">아이템을 판매해 <strong>랜덤 뽑기</strong> 가능 (실패 75%)</div>
-            <button id="btnSellDraw" class="btn-ghost">판매→뽑기</button>
           </div>
         </div>
 
@@ -181,7 +179,7 @@
       <!-- 📊 랭킹 표 -->
       <section class="card" style="grid-column:1 / -1">
         <div class="title">랭킹</div>
-        <div id="ranking" class="log" style="height:auto; max-height:260px"></div>
+        <div id="rankingModal" class="log" style="height:auto; max-height:220px; overflow:auto"></div>
       </section>
     </div>
 
@@ -376,21 +374,42 @@ function renderBars(){
       }
       else if(idx===4){
         const a = trimZerosStr(randDec(pick([1,2]))); const b = trimZerosStr(randDec(pick([1,2])));
-        const target = pick(['첫째자리','둘째자리','일의자리']);
-        text = fmt(a)+' ÷ '+fmt(b)+' (몫을 '+target+'까지 반올림)';
+        const target = pick(['소수 첫째자리','소수 둘째자리','일의자리']);
+        text = fmt(a)+' ÷ '+fmt(b)+' (몫을 반올림하여'+target+'까지 나타내기)';
         const raw = parseFloat(a)/parseFloat(b);
         kind='rounding'; ans={raw, target}; hint='규칙: 5이상 올림, 미만 버림';
         return {text, ans, hint, kind};
       }
-      else { // 5
-        let X = trimZerosStr((rnd(12,200)/10).toFixed(pick([1,2])));
-        let Y = trimZerosStr((rnd(5,150)/10).toFixed(pick([1,2])));
-        const xv=parseFloat(X), yv=parseFloat(Y);
-        const cnt=Math.floor((xv+1e-9)/yv); const remain=xv-cnt*yv; const rFixed=Math.round(remain*100)/100;
-        text = fmt(X)+'를 '+fmt(Y)+'씩 나누어 담습니다. 만들 수 있는 개수와 남는 양은? (형식: 개수, 남는양)';
-        ans={cnt, rem:rFixed}; hint='개수 = 몫의 정수부분, 남는 양 = 전체 - (개수×한 개 분량)'; kind='pair';
-        return {text, ans, hint, kind};
-      }
+      else { // 5: 나눠주고 남는 양 — 반드시 몫 ≥ 2
+  let tries = 0;
+  while (tries++ < 300) {
+    let X = trimZerosStr((rnd(12,200)/10).toFixed(pick([1,2])));
+    let Y = trimZerosStr((rnd(5,150)/10).toFixed(pick([1,2])));
+    const xv = parseFloat(X), yv = parseFloat(Y);
+    if (yv <= 0) continue;
+    const cnt = Math.floor((xv + 1e-9) / yv);
+    if (cnt >= 2) {
+      const remain = xv - cnt * yv;
+      const rFixed = Math.round(remain * 100) / 100;
+      const text = fmt(X) + '를 ' + fmt(Y) + '씩 나누어 담습니다. 만들 수 있는 개수와 남는 양은? (형식: 개수, 남는양)';
+      const ans = { cnt, rem: rFixed };
+      const hint = '개수 = 몫의 정수부분, 남는 양 = 전체 - (개수×한 개 분량)';
+      const kind = 'pair';
+      return { text, ans, hint, kind };
+    }
+  }
+  // 안전 폴백
+  const X = '6.0', Y = '2.5';
+  const xv = 6.0, yv = 2.5;
+  const cnt = Math.floor((xv + 1e-9) / yv);
+  const rFixed = Math.round((xv - cnt * yv) * 100) / 100;
+  const text = fmt(X)+'를 '+fmt(Y)+'씩 나누어 담습니다. 만들 수 있는 개수와 남는 양은? (형식: 개수, 남는양)';
+  const ans = { cnt, rem: rFixed };
+  const hint = '개수 = 몫의 정수부분, 남는 양 = 전체 - (개수×한 개 분량)';
+  const kind = 'pair';
+  return { text, ans, hint, kind };
+}
+
     }
     // 폴백 (이 지점에 오면 어떤 경우든 안전 문제 반환)
     return {text:'1.2 ÷ 0.3', ans:4, hint:'제수를 정수로 만들기', kind:'number'};
@@ -728,23 +747,39 @@ async function sendScore(){
 }
 
   async function fetchRanking(){
-    if(!(LIST_URL)) return getMockRanking();
-    try{
-      const res = await fetch(LIST_URL, {method:'GET'});
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      const data = await res.json();
-      // 다양한 응답 형태 방어
-      let arr = null;
-      if(Array.isArray(data)) arr = data;
-      else if(data && Array.isArray(data.data)) arr = data.data;
-      else if(data && Array.isArray(data.rows)) arr = data.rows;
-      else if(data && data.ok===false) throw new Error(data.message||'ok:false');
-      else throw new Error('Unexpected JSON shape');
-      const by = 'correct';
-      arr.sort((a,b)=> ( (Number(b[by])||0) - (Number(a[by])||0) ) || (new Date(b.timestamp)-new Date(a.timestamp)) );
-      return arr;
-    }catch(e){ log('랭킹 불러오기 실패 - '+e.message+' (로컬 모드 사용)'); return getMockRanking(); }
+  if(!(LIST_URL)) return dedupByName(getMockRanking());
+  try {
+    const res = await fetch(LIST_URL, { method: 'GET' });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    let arr = null;
+    if(Array.isArray(data)) arr = data;
+    else if(data && Array.isArray(data.data)) arr = data.data;
+    else if(data && Array.isArray(data.rows)) arr = data.rows;
+    else if(data && data.ok === false) throw new Error(data.message || 'ok:false');
+    else throw new Error('Unexpected JSON shape');
+
+    const by = 'correct';
+    arr.sort((a,b)=> ((Number(b[by])||0) - (Number(a[by])||0)) || (new Date(b.timestamp) - new Date(a.timestamp)) );
+    return dedupByName(arr);
+  } catch(e) {
+    log('랭킹 불러오기 실패 - ' + e.message + ' (로컬 모드 사용)');
+    return dedupByName(getMockRanking());
   }
+}
+
+function dedupByName(list){
+  const seen = new Set();
+  const out = [];
+  for(const r of list){
+    const name = (r.name||'').trim();
+    if(!name) continue;
+    if(seen.has(name)) continue;
+    seen.add(name);
+    out.push(r);
+  }
+  return out;
+}
 
   // 누적 정답수 집계 및 훅
   state.totalCorrect = 0;
