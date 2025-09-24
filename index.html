@@ -538,6 +538,7 @@ function renderBars(){
     const btnRunTests=$('#btnRunTests'); if(btnRunTests) btnRunTests.addEventListener('click', runTests);
     const btnHint=$('#btnHint'); if(btnHint) btnHint.addEventListener('click', ()=>{ if(state.problem) setText('#hint', state.problem.hint);});
     const btnVictoryClose = document.getElementById('btnVictoryClose'); if(btnVictoryClose) btnVictoryClose.addEventListener('click', ()=>{ closeOverlay('victory'); state.victoryHold=false; newMonster(); renderBars(); nextProblem(); });
+    const btnSend = $('#btnSendScore'); if (btnSend) btnSend.addEventListener('click', sendScore);
   }
 
   // 간단 테스트 러너 (기존 설명 + 추가 테스트 케이스)
@@ -672,7 +673,7 @@ function renderBars(){
       renderRanking(getMockRanking()); return;
     }
     try{
-      const res = await fetch(SUBMIT_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload)});
+      const res = await fetch(SUBMIT_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
       if(!res.ok){ throw new Error('HTTP '+res.status); }
       const data = await res.json().catch(()=>({ok:true}));
       log('점수 전송 완료'); if(data?.ok===false) log('서버 응답: '+(data?.message||'실패'));
@@ -747,4 +748,5 @@ function stageName(idx){
   
 </body>
 </html>
+
 
