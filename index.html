@@ -558,6 +558,18 @@ function renderBars(){
     const btnHint=$('#btnHint'); if(btnHint) btnHint.addEventListener('click', ()=>{ if(state.problem) setText('#hint', state.problem.hint);});
     const btnVictoryClose = document.getElementById('btnVictoryClose'); if(btnVictoryClose) btnVictoryClose.addEventListener('click', ()=>{ closeOverlay('victory'); state.victoryHold=false; newMonster(); renderBars(); nextProblem(); });
     const btnSend = $('#btnSendScore'); if (btnSend) btnSend.addEventListener('click', sendScore);
+
+    // ⬇⬇⬇ 여기 추가 (랭킹 불러오기 버튼 리스너)
+    const btnFetchRank = $('#btnFetchRank');
+    if (btnFetchRank) btnFetchRank.addEventListener('click', async ()=>{
+      openOverlay('ovRank');                       // 모달 열기
+      const rows = await fetchRanking();           // 서버/로컬 랭킹 가져오기
+      renderRanking(rows, 'rankingModal');         // 모달 내부 표에 렌더 (id=rankingModal)
+    });
+
+    // (선택) 모달 닫기 버튼 리스너 없으면 같이 추가
+    const closeRank = $('#closeRank');
+    if (closeRank) closeRank.addEventListener('click', ()=> closeOverlay('ovRank'));
   }
 
   // 간단 테스트 러너 (기존 설명 + 추가 테스트 케이스)
@@ -634,48 +646,68 @@ function renderBars(){
   function fmtStage(n){ const w=Math.floor(n/10), i=n%10; return w+'-'+i; }
 
   // 표 그리기: 4가지 점수 모두 노출
-  function renderRanking(list){
-    const box=document.getElementById('ranking'); if(!box) return;
-    if(!list || !list.length){ box.innerHTML='<span class="muted">랭킹 데이터가 없습니다.</span>'; return; }
-    let html='<table style="width:100%; border-collapse:collapse">'+
-      '<thead><tr style="text-align:left">'
-      +'<th style="padding:6px 4px">#</th>'
-      +'<th style="padding:6px 4px">이름</th>'
-      +'<th style="padding:6px 4px">정답수</th>'
-      +'<th style="padding:6px 4px">레벨</th>'
-      +'<th style="padding:6px 4px">경험치</th>'
-      +'<th style="padding:6px 4px">스테이지</th>'
-      +'<th style="padding:6px 4px">등록시각</th>'
-      +'</tr></thead><tbody>';
-    list.forEach((r,idx)=>{
-      const when = r.timestamp? new Date(r.timestamp).toLocaleString():'';
-      const stageTxt = (typeof r.stage==='number')? fmtStage(r.stage): (r.stageText||'');
-      html += `<tr>`
-        + `<td style="padding:6px 4px">${idx+1}</td>`
-        + `<td style="padding:6px 4px">${r.name||''}</td>`
-        + `<td style="padding:6px 4px">${r.correct ?? r.score ?? ''}</td>`
-        + `<td style="padding:6px 4px">${r.level ?? ''}</td>`
-        + `<td style="padding:6px 4px">${r.xp ?? ''}</td>`
-        + `<td style="padding:6px 4px">${stageTxt}</td>`
-        + `<td style="padding:6px 4px">${when}</td>`
-        + `</tr>`;
-    });
-    html+='</tbody></table>';
-    box.innerHTML=html;
+  // 표 그리기: 4가지 점수 모두 노출 (targetId로 표를 어디에 그릴지 지정)
+function renderRanking(list, targetId = 'ranking'){
+  const box = document.getElementById(targetId); if(!box) return;
+  if(!list || !list.length){
+    box.innerHTML = '<span class="muted">랭킹 데이터가 없습니다.</span>';
+    return;
   }
 
-  function addMockRecord(rec){
-    const raw=localStorage.getItem(MOCK_KEY);
-    const arr = raw? JSON.parse(raw): [];
-    arr.push(rec);
-    localStorage.setItem(MOCK_KEY, JSON.stringify(arr));
+  // 정렬(서버도 정렬하지만, 클라에서 한 번 더 안전 정렬)
+  list = [...list].sort((a,b)=>
+    ((Number(b.correct)||0) - (Number(a.correct)||0)) ||
+    (new Date(b.timestamp) - new Date(a.timestamp))
+  );
+
+  // 동일 이름 중복 제거(최상위만 유지)
+  const seen = new Set(); const dedup = [];
+  for(const r of list){
+    const nm = (r.name||'').trim(); if(!nm) continue;
+    if(seen.has(nm)) continue;
+    seen.add(nm); dedup.push(r);
   }
-  function getMockRanking(){
-    const raw=localStorage.getItem(MOCK_KEY);
-    const arr = raw? JSON.parse(raw): [];
-    arr.sort((a,b)=> ( (b['correct']??0) - (a['correct']??0) ) || (new Date(b.timestamp)-new Date(a.timestamp)) );
-    return arr;
+
+  // 표 생성
+  let rows = '';
+  dedup.forEach((r,idx)=>{
+    const when = r.timestamp ? new Date(r.timestamp).toLocaleString() : '';
+    const stageTxt = (typeof r.stage === 'number') ? fmtStage(r.stage) : (r.stageText || '');
+    rows += `<tr>
+      <td style="padding:6px 4px">${idx+1}</td>
+      <td style="padding:6px 4px">${r.name||''}</td>
+      <td style="padding:6px 4px">${r.correct ?? r.score ?? ''}</td>
+      <td style="padding:6px 4px">${r.level ?? ''}</td>
+      <td style="padding:6px 4px">${r.xp ?? ''}</td>
+      <td style="padding:6px 4px">${stageTxt}</td>
+      <td style="padding:6px 4px">${when}</td>
+    </tr>`;
+  });
+
+  const header = `
+    <table style="width:100%; border-collapse:collapse">
+      <thead>
+        <tr style="text-align:left">
+          <th style="padding:6px 4px">#</th>
+          <th style="padding:6px 4px">이름</th>
+          <th style="padding:6px 4px">정답수</th>
+          <th style="padding:6px 4px">레벨</th>
+          <th style="padding:6px 4px">경험치</th>
+          <th style="padding:6px 4px">스테이지</th>
+          <th style="padding:6px 4px">등록시각</th>
+        </tr>
+      </thead>`;
+
+  // 모달(targetId='rankingModal')은 5줄만 보이도록 스크롤 래퍼
+  if(targetId === 'rankingModal'){
+    box.innerHTML = header + `<tbody></tbody></table>
+      <div style="max-height:220px; overflow:auto">
+        <table style="width:100%; border-collapse:collapse"><tbody>${rows}</tbody></table>
+      </div>`;
+  } else {
+    box.innerHTML = header + `<tbody>${rows}</tbody></table>`;
   }
+}
 
 async function sendScore(){
   const name = document.getElementById('nameInput')?.value?.trim();
@@ -829,6 +861,7 @@ function stageName(idx){
   
 </body>
 </html>
+
 
 
 
