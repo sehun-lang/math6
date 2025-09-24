@@ -254,8 +254,8 @@
   function fmt(x){ return trimZerosStr(String(x)); }
   function atMostKDecimals(val,k){ const m=Math.pow(10,k); return Math.abs(Math.round(val*m) - val*m) < 1e-9; }
 
-  // ✅ 정답 목표 3개로 변경
-  const STAGE_GOAL=3;
+  // ✅ 정답 목표 설정
+  const STAGE_GOAL=2;
   
   const state={level:1,xp:0,maxHp:20,hp:20,baseAtk:5,lives:1,stage:{world:1,index:1,correct:0},mob:null,problem:null,freeplay:false};
 
@@ -829,6 +829,7 @@ function stageName(idx){
   
 </body>
 </html>
+
 
 
 
